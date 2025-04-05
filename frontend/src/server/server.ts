@@ -1,12 +1,15 @@
 import { defaultPlaces } from '../constants';
 import { ChatSettings, Message, Place } from '../interfaces';
 
+const server = "https://language-api.abozanona.me/server"
+// const server = "http://localhost:8080"
+
 export const startTopicConversation = async (placeId: string, settings: ChatSettings): Promise<Message | undefined> => {
 	const place = defaultPlaces.find((p) => p.id === placeId);
 	if (!place) return;
 
 	try {
-		const response = await fetch('http://localhost:8080/api/chat', {
+		const response = await fetch(server + '/api/chat', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -43,7 +46,7 @@ export const sendMessage = async (
 	settings: ChatSettings,
 	place: Place
 ): Promise<Message | undefined> => {
-	const response = await fetch('http://localhost:8080/api/chat', {
+	const response = await fetch(server + '/api/chat', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -83,7 +86,7 @@ export const sendMessage = async (
 
 export const handleWordTranslation = async (word: string, language: string): Promise<string> => {
 	try {
-		const response = await fetch('http://localhost:8080/api/translate', {
+		const response = await fetch(server + '/api/translate', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
