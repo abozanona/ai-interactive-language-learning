@@ -25,18 +25,16 @@ export interface Message {
 	timestamp: Date;
 	translation?: string;
 	pronunciation?: string;
-	suggestions?: {
-		text: string,
-		isCorrect: boolean,
-	}[];
+	suggestions?: { text: string; isCorrect: boolean }[];
 	feedback?: string;
 	correctAnswer?: string;
 }
 
 export interface ChatSettings {
 	topic: string;
-	mode: 'speaking' | 'writing';
+	mode: string;
 	speed: number;
 	complexity: number;
-	place?: string;
+	place: string;
+	voice: SpeechSynthesisVoice | null;
 }

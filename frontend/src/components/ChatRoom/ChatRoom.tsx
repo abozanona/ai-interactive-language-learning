@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { defaultPlaces } from '../../constants';
 import styles from './ChatRoom.module.css';
 import {
-	ChatBubbleLeftIcon,
 	AdjustmentsHorizontalIcon,
 	SpeakerWaveIcon,
 	PaperAirplaneIcon,
@@ -11,32 +10,8 @@ import {
 	CheckCircleIcon,
 	XCircleIcon
 } from '@heroicons/react/24/outline';
-
-interface ChatSettings {
-	topic: string;
-	mode: string;
-	speed: number;
-	complexity: number;
-	place: string;
-	voice: SpeechSynthesisVoice | null;
-}
-
-interface Feedback {
-	text: string;
-	isCorrect: boolean;
-}
-
-interface Message {
-	id: string;
-	text: string;
-	sender: 'user' | 'ai';
-	timestamp: Date;
-	translation?: string;
-	pronunciation?: string;
-	suggestions?: { text: string; isCorrect: boolean }[];
-	feedback?: Feedback;
-	correctAnswer?: string;
-}
+import { ChatSettings, Message } from '../../interfaces';
+import { handleWordTranslation, sendMessage, startTopicConversation } from '../../server/server';
 
 const topics = [
 	'Numbers and Counting',
@@ -48,7 +23,7 @@ const topics = [
 	'Weather and Seasons',
 	'Hobbies and Activities',
 	'Work and Professions',
-	'Culture and Traditions',
+	'Culture and Traditions'
 ];
 
 const ChatRoom: React.FC = () => {
@@ -62,79 +37,41 @@ const ChatRoom: React.FC = () => {
 		speed: 0,
 		complexity: 0,
 		place: '',
-		voice: null,
+		voice: null
 	});
 	const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-	const [selectedWord, setSelectedWord] = useState<string | null>(null);
-	const [feedback, setFeedback] = useState<Feedback | null>(null);
 	const [selectedSuggestions, setSelectedSuggestions] = useState<Record<string, string>>({});
-	const [wordTranslation, setWordTranslation] = useState<{ word: string; translation: string } | null>(null);
-	const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+	const [wordTranslation, setWordTranslation] = useState<{
+		word: string;
+		translation: string;
+	} | null>(null);
+	const [tooltipPosition, setTooltipPosition] = useState<{
+		x: number;
+		y: number;
+	} | null>(null);
 	const [showSettings, setShowSettings] = useState(false);
 
 	const getPlaceInfo = () => {
-		return defaultPlaces.find(p => p.id === placeId);
-	};
-
-	const startTopicConversation = async () => {
-		const place = getPlaceInfo();
-		if (!place) return;
-
-		try {
-			const response = await fetch('http://localhost:8080/api/chat', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					message: 'START_CHAT',
-					language: place.language,
-					settings: {
-						topic: settings.topic,
-						mode: settings.mode,
-						speed: settings.speed,
-						complexity: settings.complexity,
-						place: place.name,
-					},
-					history: [],
-				}),
-			});
-
-			if (!response.ok) {
-				throw new Error(`API request failed with status ${response.status}`);
-			}
-
-			const data = await response.json();
-			const aiResponse: Message = {
-				id: Date.now().toString(),
-				text: data.text,
-				translation: data.translation,
-				pronunciation: data.pronunciation,
-				suggestions: data.suggestions,
-				feedback: data.feedback,
-				correctAnswer: data.correctAnswer,
-				sender: 'ai',
-				timestamp: new Date(),
-			};
-
-			setMessages([aiResponse]);
-		} catch (error) {
-			console.error('Failed to start conversation:', error);
-		}
+		return defaultPlaces.find((p) => p.id === placeId);
 	};
 
 	useEffect(() => {
 		if (placeId) {
 			const place = getPlaceInfo();
 			if (place) {
-				setSettings(prev => ({ ...prev, place: place.name }));
+				setSettings((prev) => ({ ...prev, place: place.name }));
 			}
 		}
 	}, [placeId]);
 
 	useEffect(() => {
 		if (settings.place && placeId) {
-			startTopicConversation();
+			const place = getPlaceInfo();
+			if (!place) return;
+
+			startTopicConversation(place.id, settings).then((message) => {
+				message && setMessages([message]);
+			});
 		}
 	}, [settings.topic, settings.place]);
 
@@ -156,12 +93,12 @@ const ChatRoom: React.FC = () => {
 		if (!placeInfo) return;
 
 		const voices = window.speechSynthesis.getVoices();
-		const languageVoices = voices.filter(voice => voice.lang.startsWith(placeInfo.SpeechSynthesisCode));
+		const languageVoices = voices.filter((voice) => voice.lang.startsWith(placeInfo.SpeechSynthesisCode));
 		setAvailableVoices(languageVoices);
 
 		// Set default voice if none selected
 		if (!settings.voice && languageVoices.length > 0) {
-			setSettings(prev => ({ ...prev, voice: languageVoices[0] }));
+			setSettings((prev) => ({ ...prev, voice: languageVoices[0] }));
 		}
 	};
 
@@ -189,50 +126,28 @@ const ChatRoom: React.FC = () => {
 
 	const handleWordClick = async (word: string, event: React.MouseEvent<HTMLSpanElement>) => {
 		event.preventDefault();
+
 		const place = getPlaceInfo();
 		if (!place) return;
 
-		try {
-			const response = await fetch('http://localhost:8080/api/translate', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					text: word,
-					sourceLang: place.language,
-					targetLang: 'en',
-				}),
-			});
+		const translation = await handleWordTranslation(word, place.language);
 
-			if (!response.ok) {
-				throw new Error(`API request failed with status ${response.status}`);
-			}
+		const rect = (event.target as HTMLElement).getBoundingClientRect();
+		const padding = 20; // Space between tooltip and word
 
-			const data = await response.json();
-			if (!data.translated_text) {
-				throw new Error('Translation not available');
-			}
+		// Calculate initial position
+		let x = rect.left + rect.width / 2 + window.scrollX;
+		let y = rect.bottom + padding + window.scrollY;
 
-			const rect = (event.target as HTMLElement).getBoundingClientRect();
-			const padding = 20; // Space between tooltip and word
+		// Ensure tooltip stays within viewport
+		const tooltipWidth = 200; // min-w-[200px]
+		const viewportWidth = window.innerWidth;
 
-			// Calculate initial position
-			let x = rect.left + (rect.width / 2) + window.scrollX;
-			let y = rect.bottom + padding + window.scrollY;
+		// Adjust horizontal position if too close to edges
+		x = Math.min(Math.max(tooltipWidth / 2, x), viewportWidth - tooltipWidth / 2);
 
-			// Ensure tooltip stays within viewport
-			const tooltipWidth = 200; // min-w-[200px]
-			const viewportWidth = window.innerWidth;
-
-			// Adjust horizontal position if too close to edges
-			x = Math.min(Math.max(tooltipWidth / 2, x), viewportWidth - (tooltipWidth / 2));
-
-			setWordTranslation({ word, translation: data.translated_text });
-			setTooltipPosition({ x, y });
-		} catch (error) {
-			console.error('Failed to translate word:', error);
-		}
+		setWordTranslation({ word, translation: translation });
+		setTooltipPosition({ x, y });
 	};
 
 	useEffect(() => {
@@ -257,7 +172,7 @@ const ChatRoom: React.FC = () => {
 			id: Date.now().toString(),
 			text: currentMessage,
 			sender: 'user',
-			timestamp: new Date(),
+			timestamp: new Date()
 		};
 
 		setMessages((prev) => [...prev, newMessage]);
@@ -267,50 +182,15 @@ const ChatRoom: React.FC = () => {
 		if (!place) return;
 
 		try {
-			const conversationHistory = messages.map(msg => ({
+			const conversationHistory = messages.map((msg) => ({
 				role: msg.sender === 'user' ? 'user' : 'assistant',
-				content: msg.text
+				Parts: [msg.text]
 			}));
 
-			const response = await fetch('http://localhost:8080/api/chat', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					message: currentMessage,
-					language: place.language,
-					settings: {
-						topic: settings.topic,
-						mode: settings.mode,
-						speed: settings.speed,
-						complexity: settings.complexity,
-						place: place.name,
-					},
-					history: conversationHistory,
-				}),
-			});
-
-			if (!response.ok) {
-				throw new Error(`API request failed with status ${response.status}`);
+			const aiResponse = await sendMessage(conversationHistory, currentMessage, settings, place);
+			if (!aiResponse) {
+				throw new Error('No response');
 			}
-
-			const data = await response.json();
-			const aiResponse: Message = {
-				id: (Date.now() + 1).toString(),
-				text: data.text || 'No response text available',
-				translation: data.translation,
-				pronunciation: data.pronunciation,
-				suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
-				feedback: data.feedback && typeof data.feedback === 'object' &&
-					'text' in data.feedback && 'isCorrect' in data.feedback ? {
-					text: String(data.feedback.text),
-					isCorrect: Boolean(data.feedback.isCorrect)
-				} : undefined,
-				correctAnswer: data.correctAnswer,
-				sender: 'ai',
-				timestamp: new Date(),
-			};
 
 			setMessages((prev) => [...prev, aiResponse]);
 		} catch (error) {
@@ -319,33 +199,22 @@ const ChatRoom: React.FC = () => {
 				id: (Date.now() + 1).toString(),
 				text: 'Sorry, I encountered an error. Please try again.',
 				sender: 'ai',
-				timestamp: new Date(),
+				timestamp: new Date()
 			};
 			setMessages((prev) => [...prev, errorMessage]);
 		}
 	};
 
-	const renderFeedback = (feedback: Feedback | undefined) => {
+	const renderFeedback = (feedback: string | undefined) => {
 		try {
-			if (!feedback || typeof feedback.isCorrect !== 'boolean' || typeof feedback.text !== 'string') {
+			if (!feedback) {
 				return null;
 			}
-
-			const { isCorrect, text } = feedback;
-			if (!text.trim()) return null;
+			if (!feedback.trim()) return null;
 
 			return (
-				<div
-					className={`flex items-center gap-2 mt-2 ${isCorrect ? 'text-success' : 'text-error'}`}
-					role="status"
-					aria-live="polite"
-				>
-					{isCorrect ? (
-						<CheckCircleIcon className="h-5 w-5" aria-label="Correct" />
-					) : (
-						<XCircleIcon className="h-5 w-5" aria-label="Incorrect" />
-					)}
-					<span className="text-base-content">{text}</span>
+				<div className={`flex items-center gap-2 mt-2`} role="status" aria-live="polite">
+					<span className="text-base-content">{feedback}</span>
 				</div>
 			);
 		} catch (error) {
@@ -374,7 +243,10 @@ const ChatRoom: React.FC = () => {
 							<button
 								className={`btn btn-sm ${buttonClass} transition-colors duration-200`}
 								onClick={() => {
-									setSelectedSuggestions(prev => ({ ...prev, [message.id]: suggestion.text }));
+									setSelectedSuggestions((prev) => ({
+										...prev,
+										[message.id]: suggestion.text
+									}));
 									setInputMessage(suggestion.text);
 
 									const utterance = new SpeechSynthesisUtterance(suggestion.text);
@@ -385,7 +257,9 @@ const ChatRoom: React.FC = () => {
 									}
 									window.speechSynthesis.speak(utterance);
 								}}
-								aria-label={`Suggestion: ${suggestion.text}${isSelected ? suggestion.isCorrect ? ' (Correct)' : ' (Incorrect)' : ''}`}
+								aria-label={`Suggestion: ${suggestion.text}${
+									isSelected ? (suggestion.isCorrect ? ' (Correct)' : ' (Incorrect)') : ''
+								}`}
 							>
 								<span className="flex items-center gap-2 relative pr-6">
 									{suggestion.text}
@@ -422,10 +296,7 @@ const ChatRoom: React.FC = () => {
 			const words = text.split(/\s+/);
 			return words.map((word, index) => (
 				<React.Fragment key={index}>
-					<span
-						className="cursor-pointer hover:text-primary hover:underline"
-						onClick={(e) => handleWordClick(word, e)}
-					>
+					<span className="cursor-pointer hover:text-primary hover:underline" onClick={(e) => handleWordClick(word, e)}>
 						{word}
 					</span>
 					{index < words.length - 1 ? ' ' : ''}
@@ -434,26 +305,33 @@ const ChatRoom: React.FC = () => {
 		};
 
 		return (
-			<div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-				<div className={`rounded-lg px-4 py-2 max-w-[70%] ${isUser ? 'bg-primary/5 text-primary border border-primary/10' : 'bg-base-100 text-base-content border border-base-200'}`}>
-					<div className="text-base-content">{renderClickableText(message.text)}</div>
-					{!isUser && message.translation && (
-						<div className="text-sm text-base-content/70 mt-2">{message.translation}</div>
-					)}
-					{!isUser && message.pronunciation && (
-						<div className="flex items-center gap-2 mt-2">
-							<span className="text-sm text-base-content/70 italic">{message.pronunciation}</span>
-							<button
-								className="btn btn-circle btn-xs hover:btn-primary"
-								onClick={() => pronounceWord(message.text)}
-								aria-label="Pronounce message"
-							>
-								<SpeakerWaveIcon className="w-4 h-4" aria-hidden="true" />
-							</button>
-						</div>
-					)}
-					{!isUser && renderFeedback(message.feedback)}
-					{!isUser && message.suggestions && renderSuggestions(message)}
+			<div key={message.id}>
+				{!isUser && renderFeedback(message.feedback)}
+
+				<div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+					<div
+						className={`rounded-lg px-4 py-2 max-w-[70%] ${
+							isUser
+								? 'bg-primary/5 text-primary border border-primary/10'
+								: 'bg-base-100 text-base-content border border-base-200'
+						}`}
+					>
+						<div className="text-base-content">{renderClickableText(message.text)}</div>
+						{!isUser && message.translation && <div className="text-sm text-base-content/70 mt-2">{message.translation}</div>}
+						{!isUser && message.pronunciation && (
+							<div className="flex items-center gap-2 mt-2">
+								<span className="text-sm text-base-content/70 italic">{message.pronunciation}</span>
+								<button
+									className="btn btn-circle btn-xs hover:btn-primary"
+									onClick={() => pronounceWord(message.text)}
+									aria-label="Pronounce message"
+								>
+									<SpeakerWaveIcon className="w-4 h-4" aria-hidden="true" />
+								</button>
+							</div>
+						)}
+						{!isUser && message.suggestions && renderSuggestions(message)}
+					</div>
 				</div>
 			</div>
 		);
@@ -468,7 +346,7 @@ const ChatRoom: React.FC = () => {
 						left: `${tooltipPosition.x}px`,
 						top: `${tooltipPosition.y}px`,
 						transform: 'translate(-50%, 0)',
-						maxWidth: 'calc(100vw - 40px)',
+						maxWidth: 'calc(100vw - 40px)'
 					}}
 				>
 					<div className="flex items-center justify-between gap-4">
@@ -523,7 +401,12 @@ const ChatRoom: React.FC = () => {
 								<select
 									className={styles.topicSelector}
 									value={settings.mode}
-									onChange={(e) => setSettings({ ...settings, mode: e.target.value as 'speaking' | 'writing' })}
+									onChange={(e) =>
+										setSettings({
+											...settings,
+											mode: e.target.value as 'speaking' | 'writing'
+										})
+									}
 								>
 									<option value="speaking">Speaking</option>
 									<option value="writing">Writing</option>
@@ -543,7 +426,12 @@ const ChatRoom: React.FC = () => {
 									max="10"
 									step="1"
 									value={settings.speed}
-									onChange={(e) => setSettings({ ...settings, speed: parseFloat(e.target.value) })}
+									onChange={(e) =>
+										setSettings({
+											...settings,
+											speed: parseFloat(e.target.value)
+										})
+									}
 									className={styles.slider}
 								/>
 							</div>
@@ -561,7 +449,12 @@ const ChatRoom: React.FC = () => {
 									max="10"
 									step="1"
 									value={settings.complexity}
-									onChange={(e) => setSettings({ ...settings, complexity: parseFloat(e.target.value) })}
+									onChange={(e) =>
+										setSettings({
+											...settings,
+											complexity: parseFloat(e.target.value)
+										})
+									}
 									className={styles.slider}
 								/>
 							</div>
@@ -577,8 +470,8 @@ const ChatRoom: React.FC = () => {
 									className={styles.topicSelector}
 									value={settings.voice?.voiceURI || ''}
 									onChange={(e) => {
-										const selectedVoice = availableVoices.find(v => v.voiceURI === e.target.value) || null;
-										setSettings(prev => ({ ...prev, voice: selectedVoice }));
+										const selectedVoice = availableVoices.find((v) => v.voiceURI === e.target.value) || null;
+										setSettings((prev) => ({ ...prev, voice: selectedVoice }));
 									}}
 								>
 									{availableVoices.map((voice) => (
@@ -618,11 +511,7 @@ const ChatRoom: React.FC = () => {
 						onChange={(e) => setInputMessage(e.target.value)}
 						onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
 					/>
-					<button
-						className="btn btn-primary"
-						onClick={handleSendMessage}
-						disabled={!inputMessage.trim()}
-					>
+					<button className="btn btn-primary" onClick={handleSendMessage} disabled={!inputMessage.trim()}>
 						<PaperAirplaneIcon className="w-5 h-5" />
 					</button>
 				</div>
