@@ -1,7 +1,6 @@
 {
 	"name": "frontend",
 	"version": "0.1.0",
-	"private": true,
 	"homepage": "https://abozanona.github.io/ai-interactive-language-learning",
 	"dependencies": {
 		"@heroicons/react": "^2.1.1",
@@ -36,8 +35,7 @@
 		"build": "react-scripts build",
 		"test": "react-scripts test",
 		"eject": "react-scripts eject",
-		"predeploy": "npm run build",
-		"deploy": "gh-pages -d build"
+		"deploy": "react-scripts build && gh-pages -d build"
 	},
 	"eslintConfig": {
 		"extends": [

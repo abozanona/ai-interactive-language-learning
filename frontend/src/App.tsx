@@ -21,12 +21,12 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/ai-interactive-language-learning">
       <div className="min-h-screen flex flex-col bg-base-100">
         <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
         <main className="flex-grow">
           <Routes>
-            <Route path="/" element={<Home onLogin={handleLogin} />} />
+            <Route path="/ai-interactive-language-learning/" element={<Home onLogin={handleLogin} />} />
             <Route
               path="/map"
               element={

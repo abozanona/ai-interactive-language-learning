@@ -1,0 +1,13 @@
+{
+	"name": "ai-interactive-language-learning",
+	"version": "1.0.0",
+	"private": true,
+	"workspaces": [
+		"frontend/*",
+		"backend/*"
+	],
+    "scripts": {
+        "deploy": "pnpm --filter frontend run deploy"
+    },
+	"packageManager": "pnpm@9.15.4"
+}
