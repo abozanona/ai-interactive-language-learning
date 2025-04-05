@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/ai-interactive-language-learning/static/css/main.13103f22.css",
-    "main.js": "/ai-interactive-language-learning/static/js/main.7db5267d.js",
+    "main.js": "/ai-interactive-language-learning/static/js/main.cc5b4ef2.js",
     "static/js/821.19844e45.chunk.js": "/ai-interactive-language-learning/static/js/821.19844e45.chunk.js",
     "index.html": "/ai-interactive-language-learning/index.html",
     "main.13103f22.css.map": "/ai-interactive-language-learning/static/css/main.13103f22.css.map",
-    "main.7db5267d.js.map": "/ai-interactive-language-learning/static/js/main.7db5267d.js.map",
+    "main.cc5b4ef2.js.map": "/ai-interactive-language-learning/static/js/main.cc5b4ef2.js.map",
     "821.19844e45.chunk.js.map": "/ai-interactive-language-learning/static/js/821.19844e45.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.13103f22.css",
-    "static/js/main.7db5267d.js"
+    "static/js/main.cc5b4ef2.js"
   ]
 }
