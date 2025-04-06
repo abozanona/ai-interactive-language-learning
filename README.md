@@ -18,3 +18,5 @@ An interactive language learning platform with AI-powered conversations.
 ## Getting Started
 
 Server restarts every 5 minutes. To make sure that server is running, open this page in a new tab https://language-api.abozanona.me/cgi-bin/app.cgi . If the page keeps loading forever, this means that the server is up and running.
+
+To build code: `GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o app.cgi`
