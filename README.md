@@ -16,3 +16,5 @@ An interactive language learning platform with AI-powered conversations.
 - Backend: Golang
 
 ## Getting Started
+
+Server restarts every 5 minutes. To make sure that server is running, open this page in a new tab https://language-api.abozanona.me/cgi-bin/app.cgi . If the page keeps loading forever, this means that the server is up and running.
