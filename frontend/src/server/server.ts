@@ -1,7 +1,7 @@
 import { defaultPlaces } from '../constants';
 import { ChatSettings, Message, Place } from '../interfaces';
 
-const server = "https://language-api.abozanona.me/server"
+const server = "https://ai-interactive-language-learning.leapcell.app"
 // const server = "http://localhost:8080"
 
 export const startTopicConversation = async (placeId: string, settings: ChatSettings): Promise<Message | undefined> => {
