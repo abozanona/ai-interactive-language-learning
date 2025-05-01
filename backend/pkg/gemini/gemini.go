@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/google/generative-ai-go/genai"
@@ -19,7 +20,7 @@ type Gemini struct {
 // NewGemini initializes a new Gemini instance
 func NewGemini(ctx context.Context) *Gemini {
 	return &Gemini{
-		apiKey: "EXAMPLE_KEY",
+		apiKey: os.Getenv("GEMINI_API_KEY"),
 		ctx:    ctx,
 	}
 }

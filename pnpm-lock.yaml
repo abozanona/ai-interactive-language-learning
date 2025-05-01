@@ -89,6 +89,9 @@ importers:
         specifier: ^3.5.2
         version: 3.5.2
     devDependencies:
+      '@types/webspeechapi':
+        specifier: ^0.0.29
+        version: 0.0.29
       gh-pages:
         specifier: ^6.3.0
         version: 6.3.0
@@ -1462,6 +1465,10 @@ packages:
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+
+  '@types/webspeechapi@0.0.29':
+    resolution: {integrity: sha512-AYEhqEJLdR08YPBOwYa73IHTiGU4DdngbKbtZdW+bzuM7s8LzKBed0Fwgl/a3oMqMY227qOT+3Lpr5A0WSmm+A==}
+    deprecated: Now provided by --lib dom
 
   '@types/webxr@0.5.21':
     resolution: {integrity: sha512-geZIAtLzjGmgY2JUi6VxXdCrTb99A7yP49lxLr2Nm/uIK0PkkxcEi4OGhoGDO4pxCf3JwGz2GiJL2Ej4K2bKaA==}
@@ -7710,6 +7717,8 @@ snapshots:
       meshoptimizer: 0.18.1
 
   '@types/trusted-types@2.0.7': {}
+
+  '@types/webspeechapi@0.0.29': {}
 
   '@types/webxr@0.5.21': {}
 

@@ -21,7 +21,7 @@ function App() {
   };
 
   return (
-    <BrowserRouter basename="/ai-interactive-language-learning">
+    <BrowserRouter basename="">
       <div className="min-h-screen flex flex-col bg-base-100">
         <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
         <main className="flex-grow">

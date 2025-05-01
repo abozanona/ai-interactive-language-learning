@@ -8,7 +8,8 @@ import {
 	PaperAirplaneIcon,
 	InformationCircleIcon,
 	CheckCircleIcon,
-	XCircleIcon
+	XCircleIcon,
+	MicrophoneIcon
 } from '@heroicons/react/24/outline';
 import { ChatSettings, Message } from '../../interfaces';
 import { handleWordTranslation, sendMessage, startTopicConversation } from '../../server/server';
@@ -51,6 +52,10 @@ const ChatRoom: React.FC = () => {
 	} | null>(null);
 	const [showSettings, setShowSettings] = useState(false);
 
+	// Speech recognition states
+	const [isListening, setIsListening] = useState(false);
+	const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+
 	const getPlaceInfo = () => {
 		return defaultPlaces.find((p) => p.id === placeId);
 	};
@@ -74,6 +79,87 @@ const ChatRoom: React.FC = () => {
 			});
 		}
 	}, [settings.topic, settings.place]);
+
+	// Initialize speech recognition
+	useEffect(() => {
+		// Check if browser supports SpeechRecognition
+		if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+			console.warn('Speech recognition not supported in this browser');
+			return;
+		}
+
+		const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+		const recognitionInstance = new SpeechRecognitionAPI();
+
+		recognitionInstance.continuous = true;
+		recognitionInstance.interimResults = true;
+
+		const placeInfo = getPlaceInfo();
+		if (placeInfo) {
+			recognitionInstance.lang = placeInfo.SpeechSynthesisCode;
+		}
+
+		recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
+			const transcript = Array.from(event.results)
+				.map((result) => result[0])
+				.map((result) => result.transcript)
+				.join('');
+
+			setInputMessage(transcript);
+		};
+
+		recognitionInstance.onerror = (event: SpeechRecognitionError) => {
+			console.error('Speech recognition error', event.error);
+			setIsListening(false);
+		};
+
+		recognitionInstance.onend = () => {
+			if (!isListening) {
+				recognitionInstance.stop();
+			} else {
+				try {
+					recognitionInstance.start();
+				} catch (error) {
+					console.error('Failed to restart speech recognition:', error);
+				}
+			}
+		};
+
+		setRecognition(recognitionInstance);
+
+		return () => {
+			// Cleanup
+			if (recognitionInstance) {
+				recognitionInstance.stop();
+			}
+		};
+	}, []);
+
+	// Update speech recognition language when place changes
+	useEffect(() => {
+		if (recognition) {
+			const placeInfo = getPlaceInfo();
+			if (placeInfo) {
+				recognition.lang = placeInfo.SpeechSynthesisCode;
+			}
+		}
+	}, [placeId, recognition]);
+
+	const toggleListening = () => {
+		if (!recognition) return;
+
+		if (isListening) {
+			recognition.stop();
+			setIsListening(false);
+		} else {
+			try {
+				recognition.start();
+				setIsListening(true);
+			} catch (error) {
+				console.error('Failed to start speech recognition:', error);
+			}
+		}
+	};
 
 	const scrollToBottom = () => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -511,7 +597,18 @@ const ChatRoom: React.FC = () => {
 						onChange={(e) => setInputMessage(e.target.value)}
 						onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
 					/>
-					<button className="btn btn-primary" onClick={handleSendMessage} disabled={!inputMessage.trim()}>
+					<button
+						className={`btn ${isListening ? 'btn-error' : 'btn-secondary'} ml-2`}
+						onClick={toggleListening}
+						aria-label={isListening ? 'Stop speaking' : 'Start speaking'}
+						title={isListening ? 'Stop speaking' : 'Speak to text'}
+					>
+						<MicrophoneIcon className="w-5 h-5" />
+						{isListening && (
+							<span className="animate-pulse absolute w-2 h-2 rounded-full bg-error-content top-1 right-1"></span>
+						)}
+					</button>
+					<button className="btn btn-primary ml-2" onClick={handleSendMessage} disabled={!inputMessage.trim()}>
 						<PaperAirplaneIcon className="w-5 h-5" />
 					</button>
 				</div>
